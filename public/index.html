@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#09090f">
+  <title>NAIJA GPT 2.0</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <div class="app">
+    <aside class="sidebar">
+      <h2>🇳🇬 NAIJA GPT</h2>
+      <button id="newChat">+ New Chat</button>
+      <div id="history"></div>
+      <p class="profile">NAIJA GPT 2.0</p>
+    </aside>
+
+    <main class="main">
+      <header>
+        <button id="menuBtn">☰</button>
+        <h3>NAIJA GPT 2.0</h3>
+        <span class="status">● Ready</span>
+      </header>
+
+      <section id="chatArea" class="chat-area">
+        <div id="welcome" class="welcome">
+          <h1>How far, boss? 👋</h1>
+          <p>Your AI. Your world.</p>
+          <p>What are we doing today?</p>
+        </div>
+        <div id="messages"></div>
+      </section>
+
+      <form id="chatForm" class="composer">
+        <textarea id="messageInput"
+          placeholder="Message NAIJA GPT..."
+          rows="1" required></textarea>
+        <button id="sendBtn" type="submit">➤</button>
+      </form>
+
+      <p class="disclaimer">NAIJA GPT can make mistakes. Verify important information.</p>
+    </main>
+  </div>
+
+  <script src="/script.js"></script>
+</body>
+</html>
