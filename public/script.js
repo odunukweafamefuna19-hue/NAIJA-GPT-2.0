@@ -1,13 +1,261 @@
 
+let supabaseClient;
+let conversation = [];
+let isGenerating = false;
+
+const authScreen = document.getElementById("authScreen");
+const app = document.getElementById("app");
+const authMessage = document.getElementById("authMessage");
+
+const authLogin = document.getElementById("authLogin");
+const authSignup = document.getElementById("authSignup");
+const authVerify = document.getElementById("authVerify");
+const authReset = document.getElementById("authReset");
+
 const form = document.getElementById("chatForm");
 const input = document.getElementById("messageInput");
 const messages = document.getElementById("messages");
 const welcome = document.getElementById("welcome");
 const sendBtn = document.getElementById("sendBtn");
-const newChatBtn = document.getElementById("newChat");
 
-let conversation = [];
-let isGenerating = false;
+let pendingEmail = "";
+
+function showAuthScreen(screen) {
+  authLogin.hidden = screen !== "login";
+  authSignup.hidden = screen !== "signup";
+  authVerify.hidden = screen !== "verify";
+  authReset.hidden = screen !== "reset";
+  authMessage.textContent = "";
+}
+
+function showMessage(message, success = false) {
+  authMessage.textContent = message;
+  authMessage.style.color = success ? "#4ade80" : "#fbbf24";
+}
+
+function showApp(user) {
+  authScreen.hidden = true;
+  app.hidden = false;
+
+  const name =
+    user.user_metadata?.full_name ||
+    user.email ||
+    "My Account";
+
+  document.getElementById("userProfile").textContent = name;
+}
+
+function showLogin() {
+  app.hidden = true;
+  authScreen.hidden = false;
+  showAuthScreen("login");
+}
+
+async function initializeApp() {
+  try {
+    const response = await fetch("/api/config");
+    const config = await response.json();
+
+    if (!response.ok || !config.supabaseUrl || !config.supabaseKey) {
+      throw new Error("Supabase configuration is missing.");
+    }
+
+    supabaseClient = window.supabase.createClient(
+      config.supabaseUrl,
+      config.supabaseKey
+    );
+
+    const { data, error } = await supabaseClient.auth.getSession();
+
+    if (error) throw error;
+
+    if (data.session) {
+      showApp(data.session.user);
+    } else {
+      showLogin();
+    }
+
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        showApp(session.user);
+      } else if (event === "SIGNED_OUT") {
+        showLogin();
+      }
+    });
+
+  } catch (error) {
+    showLogin();
+    showMessage(error.message);
+  }
+}
+
+// Switch authentication screens
+
+document.getElementById("showSignup").addEventListener("click", () => {
+  showAuthScreen("signup");
+});
+
+document.getElementById("showLogin").addEventListener("click", () => {
+  showAuthScreen("login");
+});
+
+document.getElementById("backToLogin").addEventListener("click", () => {
+  showAuthScreen("login");
+});
+
+document.getElementById("backFromReset").addEventListener("click", () => {
+  showAuthScreen("login");
+});
+
+// Registration
+
+document.getElementById("signupForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const name = document.getElementById("signupName").value.trim();
+  const email = document.getElementById("signupEmail").value.trim();
+  const password = document.getElementById("signupPassword").value;
+
+  const button = event.submitter;
+  button.disabled = true;
+  button.textContent = "Creating account...";
+
+  try {
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: name
+        }
+      }
+    });
+
+    if (error) throw error;
+
+    if (data.session) {
+      showApp(data.session.user);
+    } else {
+      pendingEmail = email;
+      showAuthScreen("verify");
+      showMessage("Check your email for your 6-digit verification code.", true);
+    }
+
+  } catch (error) {
+    showMessage(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Create Account";
+  }
+});
+
+// Verify registration OTP
+
+document.getElementById("verifyForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const token = document.getElementById("verifyCode").value.trim();
+
+  if (!/^\d{6}$/.test(token)) {
+    showMessage("Enter a valid 6-digit code.");
+    return;
+  }
+
+  try {
+    const { data, error } = await supabaseClient.auth.verifyOtp({
+      email: pendingEmail,
+      token,
+      type: "signup"
+    });
+
+    if (error) throw error;
+
+    showApp(data.user);
+  } catch (error) {
+    showMessage(error.message);
+  }
+});
+
+// Normal login
+
+document.getElementById("loginForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+
+  const button = event.submitter;
+  button.disabled = true;
+  button.textContent = "Signing in...";
+
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) throw error;
+
+    showApp(data.user);
+  } catch (error) {
+    showMessage(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Sign In";
+  }
+});
+
+// Google login
+
+document.getElementById("googleLogin").addEventListener("click", async () => {
+  try {
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+
+    if (error) throw error;
+
+  } catch (error) {
+    showMessage(error.message);
+  }
+});
+
+// Forgot password
+
+document.getElementById("forgotPassword").addEventListener("click", () => {
+  showAuthScreen("reset");
+});
+
+document.getElementById("resetForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const email = document.getElementById("resetEmail").value.trim();
+
+  try {
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin
+    });
+
+    if (error) throw error;
+
+    showMessage("Password reset email sent. Check your inbox.", true);
+  } catch (error) {
+    showMessage(error.message);
+  }
+});
+
+// Sign out
+
+document.getElementById("logoutBtn").addEventListener("click", async () => {
+  const { error } = await supabaseClient.auth.signOut();
+
+  if (error) alert(error.message);
+});
+
+// Chat functionality
 
 function addMessage(role, content) {
   const message = document.createElement("div");
@@ -24,7 +272,7 @@ function newChat() {
   input.value = "";
 }
 
-newChatBtn.addEventListener("click", newChat);
+document.getElementById("newChat").addEventListener("click", newChat);
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -94,4 +342,8 @@ input.addEventListener("keydown", (event) => {
     form.requestSubmit();
   }
 });
-  
+
+// Start application
+
+initializeApp();
+    
