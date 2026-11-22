@@ -11,6 +11,14 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json({ limit: "20mb" }));
 
+// Public Supabase configuration
+app.get("/api/config", (req, res) => {
+  res.json({
+    supabaseUrl: process.env.SUPABASE_URL,
+    supabaseKey: process.env.SUPABASE_ANON_KEY
+  });
+});
+
 // Serve frontend
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -47,8 +55,7 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, "0.0.0.0", () => {
-  console.log("================================");
-  console.log("🇳🇬 NAIJA GPT 2.0 IS ONLINE");
-  console.log(`http://localhost:${PORT}`);
-  console.log("================================");
+  console.log("NAIJA GPT 2.0 IS ONLINE");
+  console.log(`Server running on port ${PORT}`);
 });
+
