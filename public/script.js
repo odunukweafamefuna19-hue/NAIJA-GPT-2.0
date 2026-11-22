@@ -18,12 +18,10 @@ const messages = document.getElementById("messages");
 const welcome = document.getElementById("welcome");
 const sendBtn = document.getElementById("sendBtn");
 
-let pendingEmail = "";
-
 function showAuthScreen(screen) {
   authLogin.hidden = screen !== "login";
   authSignup.hidden = screen !== "signup";
-  authVerify.hidden = screen !== "verify";
+  authVerify.hidden = true;
   authReset.hidden = screen !== "reset";
   authMessage.textContent = "";
 }
@@ -89,7 +87,7 @@ async function initializeApp() {
   }
 }
 
-// Switch authentication screens
+// Switch screens
 
 document.getElementById("showSignup").addEventListener("click", () => {
   showAuthScreen("signup");
@@ -127,7 +125,8 @@ document.getElementById("signupForm").addEventListener("submit", async (event) =
       options: {
         data: {
           full_name: name
-        }
+        },
+        emailRedirectTo: window.location.origin
       }
     });
 
@@ -136,9 +135,11 @@ document.getElementById("signupForm").addEventListener("submit", async (event) =
     if (data.session) {
       showApp(data.session.user);
     } else {
-      pendingEmail = email;
-      showAuthScreen("verify");
-      showMessage("Check your email for your 6-digit verification code.", true);
+      showAuthScreen("login");
+      showMessage(
+        "Registration successful! Check your email and click the confirmation link before signing in.",
+        true
+      );
     }
 
   } catch (error) {
@@ -149,34 +150,7 @@ document.getElementById("signupForm").addEventListener("submit", async (event) =
   }
 });
 
-// Verify registration OTP
-
-document.getElementById("verifyForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-
-  const token = document.getElementById("verifyCode").value.trim();
-
-  if (!/^\d{6}$/.test(token)) {
-    showMessage("Enter a valid 6-digit code.");
-    return;
-  }
-
-  try {
-    const { data, error } = await supabaseClient.auth.verifyOtp({
-      email: pendingEmail,
-      token,
-      type: "signup"
-    });
-
-    if (error) throw error;
-
-    showApp(data.user);
-  } catch (error) {
-    showMessage(error.message);
-  }
-});
-
-// Normal login
+// Login
 
 document.getElementById("loginForm").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -197,6 +171,7 @@ document.getElementById("loginForm").addEventListener("submit", async (event) =>
     if (error) throw error;
 
     showApp(data.user);
+
   } catch (error) {
     showMessage(error.message);
   } finally {
@@ -242,6 +217,7 @@ document.getElementById("resetForm").addEventListener("submit", async (event) =>
     if (error) throw error;
 
     showMessage("Password reset email sent. Check your inbox.", true);
+
   } catch (error) {
     showMessage(error.message);
   }
@@ -255,14 +231,14 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
   if (error) alert(error.message);
 });
 
-// Chat functionality
+// Chat
 
 function addMessage(role, content) {
   const message = document.createElement("div");
   message.className = `message ${role}`;
   message.textContent = content;
   messages.appendChild(message);
-  messages.scrollIntoView({ behavior: "smooth", block: "end" });
+  message.scrollIntoView({ behavior: "smooth", block: "end" });
 }
 
 function newChat() {
@@ -288,8 +264,8 @@ form.addEventListener("submit", async (event) => {
 
   addMessage("user", text);
   welcome.style.display = "none";
-
   input.value = "";
+
   isGenerating = true;
   sendBtn.disabled = true;
   sendBtn.textContent = "...";
@@ -327,7 +303,7 @@ form.addEventListener("submit", async (event) => {
 
   } catch (error) {
     loading.remove();
-    addMessage("assistant", "Sorry bro! " + error.message);
+    addMessage("assistant", error.message);
   } finally {
     isGenerating = false;
     sendBtn.disabled = false;
@@ -342,8 +318,6 @@ input.addEventListener("keydown", (event) => {
     form.requestSubmit();
   }
 });
-
-// Start application
 
 initializeApp();
     
